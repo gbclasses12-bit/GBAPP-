@@ -1,10 +1,5 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { User } from 'lucide-react';
-import { SplashScreen } from './components/SplashScreen.tsx';
-import { WelcomeModal } from './components/WelcomeModal.tsx';
-import { TelegramModal } from './components/TelegramModal.tsx';
-import { StudentAnalyticsModal } from './components/StudentAnalyticsModal.tsx';
-import { PlatformLaunchingModal } from './components/PlatformLaunchingModal.tsx';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { User, Send, ShieldCheck, Lock, Sparkles, Zap } from 'lucide-react';
 import { Carousel } from './components/Carousel.tsx';
 import { PlatformCard } from './components/PlatformCard.tsx';
 import { BatchesView } from './components/BatchesView.tsx';
@@ -26,6 +21,366 @@ import {
   getStoredPlatforms,
   getStoredCarousel,
 } from './services/firestoreService.ts';
+
+// ==========================================
+// 1. INLINED SPLASH SCREEN COMPONENT
+// ==========================================
+interface SplashScreenProps {
+  onComplete: () => void;
+}
+
+function SplashScreen({ onComplete }: SplashScreenProps) {
+  const [phase, setPhase] = useState<1 | 2>(1);
+
+  useEffect(() => {
+    const phaseTimer = setTimeout(() => {
+      setPhase(2);
+    }, 1700);
+
+    const completeTimer = setTimeout(() => {
+      onComplete();
+    }, 3500);
+
+    return () => {
+      clearTimeout(phaseTimer);
+      clearTimeout(completeTimer);
+    };
+  }, [onComplete]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col items-center justify-center select-none overflow-hidden">
+      {phase === 1 && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#1c1f24] text-white animate-in fade-in duration-500">
+          <div className="relative flex flex-col items-center justify-center px-4 animate-in fade-in zoom-in-95 duration-700">
+            <div className="absolute -inset-8 rounded-full bg-amber-500/30 blur-3xl pointer-events-none animate-pulse" />
+            <div className="relative w-40 h-40 sm:w-44 sm:h-44 rounded-[32px] overflow-hidden p-1 bg-gradient-to-b from-amber-300/40 via-amber-400/20 to-transparent shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-amber-400/50 bg-black">
+              <img
+                src="/assets/sarvottam_splash.jpg"
+                alt="Sarvottam Yadav Emblem"
+                className="w-full h-full object-cover rounded-[28px]"
+              />
+            </div>
+            <div className="mt-6 px-5 py-1.5 rounded-full bg-[#11141c]/90 border border-amber-500/30 shadow-[0_0_20px_rgba(245,158,11,0.2)]">
+              <span className="text-xs sm:text-sm font-black tracking-widest text-amber-400 uppercase">
+                SARVOTTAM YADAV
+              </span>
+            </div>
+          </div>
+          <div className="absolute bottom-10 inset-x-12 max-w-xs mx-auto h-1 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-amber-400 to-amber-500 animate-[pulse_1s_infinite] w-full" />
+          </div>
+        </div>
+      )}
+
+      {phase === 2 && (
+        <div className="fixed inset-0 flex flex-col items-center justify-center bg-[#07090e] text-white animate-in fade-in duration-500">
+          <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-cyan-500/60 to-transparent" />
+          <div className="relative flex flex-col items-center justify-center animate-in fade-in zoom-in-95 duration-500">
+            <div
+              className="absolute w-72 h-72 sm:w-80 sm:h-80 rounded-full blur-3xl opacity-80 pointer-events-none"
+              style={{
+                background:
+                  'radial-gradient(circle, rgba(56,189,248,0.7) 0%, rgba(168,85,247,0.55) 35%, rgba(245,158,11,0.45) 70%, rgba(239,68,68,0.2) 100%)',
+              }}
+            />
+            <div className="relative w-40 h-40 sm:w-44 sm:h-44 rounded-[32px] overflow-hidden p-1 bg-gradient-to-b from-white/25 via-white/10 to-transparent shadow-[0_25px_60px_rgba(0,0,0,0.95)] border border-white/20 bg-black">
+              <img
+                src="/assets/gb_study_icon.png"
+                alt="GB Study Icon"
+                className="w-full h-full object-cover rounded-[28px]"
+              />
+            </div>
+            <div className="mt-7 text-3xl sm:text-4xl font-extrabold tracking-tight flex items-center justify-center">
+              <span className="text-white drop-shadow-[0_2px_10px_rgba(255,255,255,0.4)]">
+                gbstudy.
+              </span>
+              <span className="text-sky-400 drop-shadow-[0_0_15px_rgba(56,189,248,0.8)]">
+                in
+              </span>
+            </div>
+            <div className="mt-4 px-6 py-2 rounded-full bg-[#121622]/80 backdrop-blur-md border border-slate-700/60 shadow-[0_0_15px_rgba(0,0,0,0.5)]">
+              <div className="text-xs sm:text-sm font-bold tracking-widest uppercase flex items-center gap-1.5">
+                <span className="text-slate-200">SARVOTTAM</span>
+                <span className="text-sky-400">YADAV</span>
+              </div>
+            </div>
+          </div>
+          <div className="absolute bottom-10 inset-x-12 max-w-xs mx-auto h-1 rounded-full bg-slate-800 overflow-hidden">
+            <div className="h-full bg-gradient-to-r from-sky-400 via-indigo-500 to-purple-500 animate-pulse w-full" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ==========================================
+// 2. INLINED WELCOME MODAL COMPONENT
+// ==========================================
+interface WelcomeModalProps {
+  initialName: string;
+  onConfirm: (name: string) => void;
+}
+
+function WelcomeModal({ initialName, onConfirm }: WelcomeModalProps) {
+  const [name, setName] = useState(initialName || 'SARVOTTAM');
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (name.trim()) {
+      onConfirm(name.trim());
+    } else {
+      onConfirm('SARVOTTAM');
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-sm rounded-[30px] bg-[#111624] border border-sky-500/25 p-7 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+        <div className="w-16 h-16 rounded-full bg-[#182338] border border-sky-400/40 flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.2)] mb-5">
+          <User className="w-8 h-8 text-sky-400" strokeWidth={2} />
+        </div>
+        <h2 className="text-2xl font-bold text-white tracking-tight">
+          Welcome Student
+        </h2>
+        <p className="mt-1 text-sm text-slate-400 font-normal">
+          Enter your full name to start learning.
+        </p>
+        <form onSubmit={handleSubmit} className="w-full mt-6 space-y-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Your Full Name"
+              className="w-full px-5 py-3.5 rounded-[16px] bg-[#1a2133] border border-slate-700/70 text-white placeholder-slate-500 text-base focus:outline-none focus:border-sky-400 focus:ring-1 focus:ring-sky-400 transition-all text-center font-medium"
+              autoFocus
+            />
+          </div>
+          <button
+            type="submit"
+            className="w-full py-3.5 px-6 rounded-[16px] bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950 font-bold text-base shadow-[0_4px_20px_rgba(56,189,248,0.35)] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Start Exploring
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 3. INLINED TELEGRAM MODAL COMPONENT
+// ==========================================
+interface TelegramModalProps {
+  onJoin: () => void;
+  onSkip: () => void;
+}
+
+function TelegramModal({ onJoin, onSkip }: TelegramModalProps) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-sm rounded-[30px] bg-[#111624] border border-sky-500/25 p-7 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+        <div className="w-16 h-16 rounded-full bg-[#162742] border border-sky-400/40 flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.25)] mb-5">
+          <Send className="w-8 h-8 text-sky-400 transform -rotate-12 translate-x-0.5" strokeWidth={2.2} />
+        </div>
+        <h2 className="text-2xl font-bold text-white tracking-tight">
+          Join Telegram
+        </h2>
+        <p className="mt-2 text-sm text-slate-400 font-normal leading-relaxed px-2">
+          Join our official channel for latest updates, notes & new platform announcements.
+        </p>
+        <div className="w-full mt-7 space-y-3.5">
+          <button
+            onClick={onJoin}
+            className="w-full py-3.5 px-6 rounded-[16px] bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950 font-bold text-base shadow-[0_4px_20px_rgba(56,189,248,0.35)] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Join Channel
+          </button>
+          <button
+            onClick={onSkip}
+            className="w-full py-2 text-sm text-slate-400 hover:text-white font-medium transition-colors cursor-pointer"
+          >
+            Skip for now
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 4. INLINED STUDENT ANALYTICS MODAL COMPONENT
+// ==========================================
+interface StudentAnalyticsModalProps {
+  studentName: string;
+  activeSeconds: number;
+  onClose: () => void;
+  onOpenAdmin: () => void;
+}
+
+function StudentAnalyticsModal({
+  studentName,
+  activeSeconds,
+  onClose,
+  onOpenAdmin,
+}: StudentAnalyticsModalProps) {
+  const hours = Math.floor(activeSeconds / 3600);
+  const minutes = Math.floor((activeSeconds % 3600) / 60);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
+      <div className="w-full max-w-sm rounded-[30px] bg-[#111624] border border-sky-500/25 p-7 shadow-[0_20px_50px_rgba(0,0,0,0.85)] flex flex-col items-center text-center animate-in zoom-in-95 duration-300">
+        <div className="w-16 h-16 rounded-full bg-[#182338] border border-sky-400/40 flex items-center justify-center shadow-[0_0_20px_rgba(56,189,248,0.25)] mb-5">
+          <User className="w-8 h-8 text-sky-400" strokeWidth={2} />
+        </div>
+        <h2 className="text-2xl font-bold text-white tracking-tight">
+          Student Analytics
+        </h2>
+        <p className="mt-1 text-sm text-slate-400 font-normal">
+          Your registered account information
+        </p>
+        <div className="w-full mt-6 rounded-[20px] bg-[#171f30] border border-slate-700/50 p-5 space-y-4 text-left">
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Student Name</span>
+            <span className="text-white font-bold tracking-wide">
+              {studentName || 'SARVOTTAM'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Active Time</span>
+            <span className="text-white font-bold tracking-wide">
+              {hours}h {minutes}m
+            </span>
+          </div>
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-slate-400 font-medium">Access</span>
+            <span className="text-white font-bold tracking-wide">
+              Full Access (Free)
+            </span>
+          </div>
+        </div>
+        <div className="w-full mt-6 space-y-2.5">
+          <button
+            onClick={() => {
+              onClose();
+              onOpenAdmin();
+            }}
+            className="w-full py-3 px-5 rounded-[16px] bg-[#162138] hover:bg-[#1e2e4e] border border-sky-500/30 text-sky-400 font-bold text-sm flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+          >
+            <ShieldCheck className="w-4 h-4 text-sky-400" />
+            <span>Admin Control Panel</span>
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full py-3.5 px-6 rounded-[16px] bg-gradient-to-r from-sky-400 to-blue-500 hover:from-sky-300 hover:to-blue-400 text-slate-950 font-bold text-base shadow-[0_4px_20px_rgba(56,189,248,0.35)] active:scale-[0.98] transition-all cursor-pointer"
+          >
+            Close Profile
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// 5. INLINED PLATFORM LAUNCHING MODAL COMPONENT
+// ==========================================
+interface PlatformLaunchingModalProps {
+  platform?: PlatformItem | null;
+  onLaunched: () => void;
+}
+
+function PlatformLaunchingModal({
+  platform,
+  onLaunched,
+}: PlatformLaunchingModalProps) {
+  const [progress, setProgress] = useState(20);
+  const [statusText, setStatusText] = useState('Connecting to high-speed server...');
+  const onLaunchedRef = useRef(onLaunched);
+  onLaunchedRef.current = onLaunched;
+
+  useEffect(() => {
+    const t1 = setTimeout(() => {
+      setProgress(60);
+      setStatusText('Verifying student access & courses...');
+    }, 450);
+
+    const t2 = setTimeout(() => {
+      setProgress(95);
+      setStatusText(`Opening ${platform?.name || 'Platform'}...`);
+    }, 1100);
+
+    const t3 = setTimeout(() => {
+      setProgress(100);
+      setStatusText('Launching now...');
+    }, 1650);
+
+    const t4 = setTimeout(() => {
+      onLaunchedRef.current();
+    }, 1900);
+
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+    };
+  }, [platform]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/90 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-72 sm:w-80 rounded-[32px] bg-[#0f1422] border-2 border-sky-500/40 p-6 flex flex-col items-center justify-center text-center shadow-[0_20px_60px_rgba(56,189,248,0.25)] animate-in zoom-in-95 duration-200">
+        <div className="relative mb-4">
+          <div className="absolute -inset-2 rounded-2xl bg-sky-500/30 blur-lg animate-pulse" />
+          <div className="relative w-16 h-16 rounded-2xl overflow-hidden p-1 bg-gradient-to-b from-sky-400/30 to-slate-900 border border-sky-400/50 bg-[#162035] shadow-md flex items-center justify-center">
+            {platform?.icon ? (
+              <img
+                src={platform.icon}
+                alt={platform.name}
+                className="w-full h-full object-cover rounded-xl"
+              />
+            ) : (
+              <Sparkles className="w-8 h-8 text-sky-400" />
+            )}
+          </div>
+        </div>
+
+        <div className="relative w-10 h-10 mb-3">
+          <div className="w-10 h-10 rounded-full border-3 border-sky-500/20 border-t-sky-400 animate-spin" />
+        </div>
+
+        <h3 className="text-white font-black text-lg tracking-tight">
+          Launching {platform?.name || 'Platform'}...
+        </h3>
+
+        <p className="mt-1 text-xs text-slate-400 font-medium h-4 transition-all">
+          {statusText}
+        </p>
+
+        <div className="w-full mt-4 h-1.5 rounded-full bg-slate-800 overflow-hidden">
+          <div
+            className="h-full bg-gradient-to-r from-sky-400 to-blue-500 rounded-full transition-all duration-300 ease-out"
+            style={{ width: `${progress}%` }}
+          />
+        </div>
+
+        <button
+          onClick={() => onLaunchedRef.current()}
+          className="mt-3.5 px-4 py-1.5 rounded-full bg-sky-500/10 hover:bg-sky-500/20 border border-sky-500/30 text-sky-300 font-bold text-[11px] flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
+        >
+          <Zap className="w-3.5 h-3.5 text-sky-400" />
+          <span>Open Immediately (Skip)</span>
+        </button>
+
+        <div className="mt-3 flex items-center gap-1.5 text-[10px] text-slate-500 font-semibold uppercase tracking-wider">
+          <Lock className="w-3 h-3 text-emerald-400" />
+          <span>GB Study • Sarvottam Yadav</span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 type AppStep =
   | 'splash'
